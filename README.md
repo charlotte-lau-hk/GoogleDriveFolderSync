@@ -3,14 +3,14 @@
 ## Script Details
 
 How to use:
-1. Create a new project in Google Apps Script
-2. Copy the script "GoogleDriveFolderSync.gs"
-3. Add a script "Showdown.gs", and the source is available at:
+1. Create a new project in Google Apps Script;
+2. Copy the code of "GoogleDriveFolderSync.gs" into "Code.gs";
+3. Add a script "Showdown.gs", and the source is available at the following page;
    https://github.com/showdownjs/showdown
-4. Modify the parameters according to your needs
-5. Test running the script with a few subfolders first
+4. Modify the parameters according to your needs;
+5. Test running the script with a few subfolders first.
 
-Google Apps Script project file and usage guide are shared on this web page:  
+Google Apps Script project file and usage guide are also shared on this web page:  
 https://www.syclau.hk/google-drive-folder-sync
 
 ## Parameters
