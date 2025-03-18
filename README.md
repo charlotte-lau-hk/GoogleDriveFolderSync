@@ -7,9 +7,8 @@ https://sites.google.com/view/charlotte-sharing/google-drive-folder-sync
 
 ## Usage Scenario:
 
-You have some folders in Google Drive that you need to sync to another location to share with your colleagues without affecting the original files. (e.g. sync to Shared Drive of a subject department)
-
-You have some folders in Google Drive in your Workspace account that need to be synced to Google Drive in your personal account (you will be leaving your organization soon, or simply as a backup).
+- You have some folders in Google Drive that you need to sync to another location to share with your colleagues without affecting the original files. (e.g. sync to Shared Drive of a subject department)
+- You have some folders in Google Drive in your Workspace account that need to be synced to Google Drive in your personal account (you will be leaving your organization soon, or simply as a backup).
 
 ## Credits
 
