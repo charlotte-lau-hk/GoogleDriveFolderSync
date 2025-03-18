@@ -16,16 +16,16 @@ https://sites.google.com/view/charlotte-sharing/google-drive-folder-sync
 ## Parameters
 
 - Sync mode:
-  Note: The user must have at least view and copy permission of the source files
+  - Note: The user must have at least view and copy permission of the source files
   - COPY = Copy file only if destination file doesn't exist
   - UPDATE = COPY and replace existing destination file if the source file is newer
   - MIRROR = UPDATE and remove destination file if there is no source file
 - Other parameters:
-  - sourceParentFolderId = ID of the source parent folder
-  - targetParentFolderId = ID of the destination parent folder (create a folder for a new sync)
-  - stateFileFolderId = ID of the folder where the state file is saved (write permission is required)
-  - syncFolderList = a list of subfolders to sync (set null to sync all subfolders)
-  - sourceFilter = a regular expression to exclude files (set null to cancel filtering)
+  - `sourceParentFolderId` = ID of the source parent folder
+  - |targetParentFolderId` = ID of the destination parent folder (create a folder for a new sync)
+  - `stateFileFolderId` = ID of the folder where the state file is saved (write permission is required)
+  - `syncFolderList` = a list of subfolders to sync (set null to sync all subfolders)
+  - `sourceFilter` = a regular expression to exclude files (set null to cancel filtering)
 
 ## Usage Scenario:
 
@@ -34,5 +34,5 @@ https://sites.google.com/view/charlotte-sharing/google-drive-folder-sync
 
 ## Credits
 
-- This project is derived from "GoogleDriveClone" by Dustin D. (3DTechConsultantsat) at https://github.com/3DTechConsultants/GoogleDriveClone/.
+- This project is derived from GoogleDriveClone by Dustin D. (3DTechConsultantsat) at https://github.com/3DTechConsultants/GoogleDriveClone/.
 - This project uses Showdown v2.1.0 at https://github.com/showdownjs/showdown 
