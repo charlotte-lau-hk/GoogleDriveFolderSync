@@ -11,7 +11,7 @@ How to use:
 5. Test running the script with a few subfolders first
 
 Google Apps Script project file and usage guide are shared on this web page:  
-https://sites.google.com/view/charlotte-sharing/google-drive-folder-sync
+https://www.syclau.hk/google-drive-folder-sync
 
 ## Parameters
 
