@@ -56,6 +56,11 @@ const syncFolderList = null; // default all subfolders
 const sourceFilter = null;  // default nothing to match
 //const sourceFilter = /^!_.*/; // prefix="!_"
 
+// by default, the owner of the script will receive and email after job completion
+// to add more recipients, change the following to a list of addresses
+const emailRecipients = null;
+// const emailRecipients = [ "alice@abc.com", "bob@xyz.com" ]
+
 
 /**************************************************
  * System configuration
@@ -89,6 +94,15 @@ let cloneJob;
 */
 //----------------------------------------------\\
 function driveFolderSync() {
+  /* Parameter Validation */
+  if (!sourceParentFolderId || !targetParentFolderId || !stateFileFolderId) {
+    throw new Error("Required folder IDs must be set");
+  }
+  if (![COPY, UPDATE, MIRROR].includes(SYNC_MODE)) {
+    throw new Error("Invalid SYNC_MODE value");
+  }
+
+  /* start working */
   cloneJob = readStateFile_();
   clearTriggers_();
   cloneJob.timeout = Date.now() + maxRuntime;
@@ -210,6 +224,9 @@ function cloneJobFinish_() {
     html = html.replaceAll("<th>", "<th style='border: 1px solid #666; background: #ffe;'>");
     html = html.replaceAll("<td>", "<td style='border: 1px solid #666;'>");
     options["htmlBody"] = html
+  }
+  if (emailRecipients) {
+    options["cc"] = emailRecipients;
   }
 
   MailApp.sendEmail(Session.getActiveUser().getEmail(), subject, message, options);
