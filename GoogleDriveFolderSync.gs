@@ -1,74 +1,11 @@
-/*******************************************************
- * Google Drive Folder Sync (v1.0.1)
- * Author: Charlotte Lau (charlotte.sy.lau@proton.me)
- * Update: 2025-03-19
- * 
- * Original source by Dustin D. (3DTechConsultantsat) at
- * https://github.com/3DTechConsultants/GoogleDriveClone/
- * *****************************************************/
-// How to Use
-// 1) Make a copy of this file
-//    - Go to the "Overview" tab
-//    - Click the copy button at top-right corner
-//    - The copied script file will be at the root of "My Drive"
-// 2) Change the parameters below
-//    - set SYNC_MODE to COPY/UPDATE/MIRROR
-//    - set source and target parent folder IDs
-//    - set comma-separated list of subfolder names OR null for all subfolders
-//    - set stateFileFolderId to indicate folder where the state file 
-//      is saved (write permission is required)
-// 3) Note:
-//    - Source files will never be modified
-//    - Only subfolders are synced, files in source parent folder are not
-//    - Permissions and stars are not copied
-//    - When a destination file is replaced, the file ID will be changed
-//    - Files deleted can be found in Trash within 30 days
-// 4) SYNC_MODE:
-//    - COPY: copy source file only if destination file doesn't exist
-//    - UPDATE: if destination file exists and is older than source file,
-//              copy source file and remove the destination file (i.e. replace)
-//    - MIRROR: UPDATE, and delete destination file if there is no source file
-//
-// Note:
-//    - Source files will never be modified
-//    - Destination folders will not be removed even in MIRROR mode
-/**************************************************/ 
-// Don't change this
-const COPY = 0;  
-const UPDATE = 1;
-const MIRROR = 2;
-let syncModeList = ["COPY", "UPDATE", "MIRROR"]
-
-/**************************************************
- * Parameters (User settings)
- **************************************************/
-const TIMEOUT = 6; // 6 for unpaid user; 30 for workspace user
-const SYNC_MODE = UPDATE;
-const sourceParentFolderId = "XXXXaoAMXCyIVncTe_hGpom1Zo9HV9999";
-const targetParentFolderId = "XXXXaTrn2gP8_7HtGJT3eLwE5-pT49999";
-const stateFileFolderId = sourceParentFolderId
-
-// Subfolders to sync (list of subfolder names), set null if all subfolders are to sync
-const syncFolderList = null; // default all subfolders
-//const syncFolderList = ["subfolder1", "subfolder2"];
-
-// filtering (regex) for files not to sync
-const sourceFilter = null;  // default nothing to match
-//const sourceFilter = /^!_.*/; // prefix="!_"
-
-// by default, the owner of the script will receive and email after job completion
-// to add more recipients, change the following to a list of addresses
-const emailRecipients = null;
-// const emailRecipients = [ "alice@abc.com", "bob@xyz.com" ]
-
-
 /**************************************************
  * System configuration
  **************************************************/
 // cannot be copied or file size is zero
 let copyUnsupported = [
-    "application/vnd.google-apps.script",
-    "application/vnd.google-apps.site"
+  "application/vnd.google-apps.script", // Google Apps Script
+  "application/vnd.google-apps.site",   // Google Sites
+  "application/vnd.google-apps.jam"     // Google Jamboard
 ];
 
 //The temporary state filename - it will be written to the root of the source folder. 
