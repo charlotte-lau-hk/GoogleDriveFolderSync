@@ -1,5 +1,5 @@
 /*******************************************************
- * Google Drive Folder Sync (v1.0)
+ * Google Drive Folder Sync (v1.0.1)
  * Author: Charlotte Lau (charlotte.sy.lau@proton.me)
  * Update: 2025-03-19
  * 
