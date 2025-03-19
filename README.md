@@ -5,7 +5,7 @@
 How to use:
 1. Create a new project in Google Apps Script;
 2. Edit "Code.gs" and copy the code of "GoogleDriveFolderSync.gs" into it;
-3. Add a file "Showdown" and copy the code of "Showdown.gs" into it;
+3. Add a file "Showdown" and copy the code of "Showdown.gs" (Showdown v2.1.0) into it;
 4. Modify the parameters in "Code.gs" according to your needs;
 5. Execute by running the function "driveFolderSync" in "Code.gs".
 
@@ -26,7 +26,7 @@ https://www.syclau.hk/google-drive-folder-sync
   - `syncFolderList` = a list of subfolders to sync (set null to sync all subfolders)
   - `sourceFilter` = a regular expression to exclude files (set null to cancel filtering)
 
-## Usage Scenario:
+## Usage Scenarios
 
 - You have some folders in Google Drive that you need to sync to another location to share with your colleagues without affecting the original files. (e.g. sync to Shared Drive of a subject department)
 - You have some folders in Google Drive in your Workspace account that need to be synced to Google Drive in your personal account (you will be leaving your organization soon, or simply as a backup).
