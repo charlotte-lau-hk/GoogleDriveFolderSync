@@ -1,7 +1,7 @@
 /*******************************************************
  * Google Drive Folder Sync (v1.0)
  * Author: Charlotte Lau (charlotte.sy.lau@proton.me)
- * Update: 2025-03-13
+ * Update: 2025-03-19
  * 
  * Original source by Dustin D. (3DTechConsultantsat) at
  * https://github.com/3DTechConsultants/GoogleDriveClone/
@@ -165,12 +165,13 @@ function cloneJobFinish_() {
   let startTimeStr = Utilities.formatDate(new Date(cloneJob.start), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   let endTimeStr = Utilities.formatDate(new Date(endTime), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   let subject = "Drive Folder Sync Job Completed ("+endTimeStr+") - " + cloneJob.syncModeStr;
-  let message = "Your drive folder sync job has completed successfully." +
+  let message = "Your drive folder sync job has completed successfully.  " +
     "\nSYNC_MODE = " + cloneJob.syncMode + " (" + cloneJob.syncModeStr + ")" +
-    "\n\nScript URL:\n" + scriptUrl +
-    "\n\nSource Parent Folder:\nhttps://drive.google.com/drive/folders/" + sourceParentFolderId +
-    "\n\nDestination Parent Folder:\nhttps://drive.google.com/drive/folders/" + targetParentFolderId +
-    "\n* Folders synced: " + cloneJob.folderCount +
+    "\n\nScript URL:  \n" + scriptUrl +
+    "\n\nSource Parent Folder:  \nhttps://drive.google.com/drive/folders/" + sourceParentFolderId +
+    "\n\nDestination Parent Folder:  \nhttps://drive.google.com/drive/folders/" + targetParentFolderId +
+    "\n* Folders scanned: " + cloneJob.folderCount +
+    "\n* Files found: " + cloneJob.fileCount +
     "\n* Files copied (brand new): " + cloneJob.copyCount +
     "\n* Files replaced (newer): " + cloneJob.replaceCount +
     "\n* Files deleted (no match): " + cloneJob.deleteCount +
@@ -326,6 +327,7 @@ function findFiles_(folder) {
         timeStamp: timeStamp
       }
       folder.files.push(newFile);
+      cloneJob.fileCount++;
       Logger.log("Found file: " + newFile.name + "; (ID: " + newFile.id + "; MIME: " + newFile.mime + ")");  // [2024-10-25] Charlotte
     }
   }
@@ -351,6 +353,7 @@ function copyFiles_(folder) {
       let fileList = driveDestFolder.getFilesByName(file.name);
       let destId = null;
       let destFile = null;
+      let driveDestFile = null;
       if (fileList.hasNext()) {
         destFile = fileList.next();
         destId = destFile.getId();
@@ -368,7 +371,7 @@ function copyFiles_(folder) {
           let dateUpdated = new Date(destFile.getLastUpdated()); // [2025-01-16] use getLastUpdated() instead of getDateCreated()
           let timeStamp = Math.floor(dateUpdated.getTime()/1000);
           if (cloneJob.syncMode==MIRROR) {
-            cloneJob.filesToDelete = cloneJob.filesToDelete.filter(id => id !== destId); // exclude from files to remove list
+            cloneJob.filesToDelete = cloneJob.filesToDelete.filter(id => id !== destId); // exclude from files-to-delete list
           }
           if (timeStamp > file.timeStamp) {
             Logger.log("> Destination file exists and is newer. Skip: (ID: " + destId + ")");
@@ -378,6 +381,7 @@ function copyFiles_(folder) {
             Logger.log("> Destination file exists and is older. To replace. (ID: " + destId + ")");
             toRemoveDestFile = true;
             toRemoveDestFileId = destId;
+            cloneJob.filesToDelete = cloneJob.filesToDelete.filter(id => id !== destId); // exclude from files-to-delete list
           }
         }
       }
@@ -410,9 +414,11 @@ function copyFiles_(folder) {
         }
       }
 
+      Logger.log("----> File copied. (new ID: " + file.destId + ")");
+
       // remove old destination file
       if (cloneJob.syncMode>=UPDATE && toRemoveDestFile && toRemoveDestFileId) {
-        Logger.log("--> Deleting old destination file.");
+        Logger.log("--> Removing old destination file.");
         let fileToRemove = DriveApp.getFileById(toRemoveDestFileId);
         fileToRemove.setTrashed(true);
         cloneJob.replaceCount++;
@@ -426,7 +432,6 @@ function copyFiles_(folder) {
         })
       } else {
         cloneJob.copyCount++;
-        Logger.log("----> File copied. (new ID: " + file.destId + ")");
         cloneJob.actionLog.push({
           action: "Copy",
           fileName: file.name,
@@ -459,10 +464,11 @@ function readStateFile_() {
       syncMode: SYNC_MODE,
       syncModeStr: syncModeList[SYNC_MODE],
       phase: 0,
+      folderCount: 0,
+      fileCount: 0,
       copyCount: 0,
       replaceCount: 0,
       deleteCount: 0,
-      folderCount: 0,
       fileSize: 0,
       failures: 0,
       failureList: [],
