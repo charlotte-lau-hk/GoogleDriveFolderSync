@@ -78,8 +78,3 @@ This project is licensed under [GPL-3.0](LICENSE), consistent with the original 
 ## Contributing
 Suggestions and bug reports are welcome! Please open an [issue](https://github.com/charlotte-lau-hk/GoogleDriveFolderSync/issues) or submit a pull request.
 
-## Contact
-- **Author**: Charlotte Lau
-- **LinkedIn**: [Charlotte Lau](https://www.linkedin.com/in/your-linkedin-profile)
-- **Website**: [syclau.hk](https://www.syclau.hk)
-
