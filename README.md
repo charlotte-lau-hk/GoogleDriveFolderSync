@@ -24,9 +24,6 @@ A Google Apps Script to synchronize subfolders between Google Drive folders with
 6. **Receive Report**:
    - After completion, the script owner (and optional recipients) will receive an email with sync statistics and logs.
 
-For a detailed guide and the script file, visit:  
-[https://www.syclau.hk/google-drive-folder-sync](https://www.syclau.hk/google-drive-folder-sync)
-
 ## Parameters
 
 Modify these in `Code.gs`:
