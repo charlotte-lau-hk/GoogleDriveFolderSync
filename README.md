@@ -41,6 +41,7 @@ Modify these in `Code.gs`:
 - **`stateFileFolderId`**: ID of the folder to store the temporary state file (requires write permission).
 - **`syncFolderList`**: List of subfolder names to sync (e.g., `["folder1", "folder2"]`); set to `null` for all subfolders.
 - **`sourceFilter`**: Regex to exclude files (e.g., `/^!_.*/` for files starting with `!_`); set to `null` to disable.
+- **`maxFileSize`**: Maximum file size (in bytes) to sync; set to `null` to disable. Files larger than this are skipped to respect target storage limits (e.g., Google Drive’s quota).
 - **`emailRecipients`**: Optional list of additional email recipients (e.g., `["alice@abc.com", "bob@xyz.com"]`); set to `null` for owner only.
 
 **Example:**
@@ -50,6 +51,7 @@ const sourceParentFolderId = "xxxx1234";
 const targetParentFolderId = "yyyy5678";
 const stateFileFolderId = targetParentFolderId;
 const syncFolderList = null;
+const maxFileSize = 104857600; // 100 MB (100 * 1024 * 1024 bytes)
 ```
 
 ## Features
@@ -63,6 +65,7 @@ const syncFolderList = null;
 - Permissions: Source files aren’t modified; permissions/stars aren’t copied.
 - Timeout: Limited to 6 minutes (unpaid) or 30 minutes (Workspace) per execution; uses triggers for longer jobs.
 - Scope: Syncs subfolders only, not files directly in the source parent folder.
+- Storage Limits: The target folder’s storage quota (e.g., 15 GB for free accounts) may be exceeded by large files. Use `maxFileSize` to exclude oversized files and avoid sync failures.
 
 ## Usage Scenarios
 - Sync folders to a Shared Drive for team sharing without altering originals.
