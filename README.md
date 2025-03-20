@@ -42,13 +42,14 @@ Modify these in `Code.gs`:
 - **`stateFileFolderId`**: ID of the folder to store the temporary state file (requires write permission).
 - **`syncFolderList`**: List of subfolder names to sync (e.g., `["folder1", "folder2"]`); set to `null` for all subfolders.
 - **`sourceFilter`**: Regex to exclude files (e.g., `/^!_.*/` for files starting with `!_`); set to `null` to disable.
-- **`emailRecipients`**: Optional list of additional email recipients (e.g., `["alice@abc.com"]`); set to `null` for owner only.
+- **`emailRecipients`**: Optional list of additional email recipients (e.g., `["alice@abc.com", "bob@xyz.com"]`); set to `null` for owner only.
 
 **Example:**
 ```javascript
 const SYNC_MODE = UPDATE;
 const sourceParentFolderId = "xxxx1234";
 const targetParentFolderId = "yyyy5678";
+const stateFileFolderId = targetParentFolderId;
 const syncFolderList = null;
 ```
 
