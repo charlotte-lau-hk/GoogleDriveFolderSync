@@ -1,5 +1,5 @@
 /*******************************************************
- * Google Drive Folder Sync (v1.0.1)
+ * Google Drive Folder Sync (v1.2.0)
  * Author: Charlotte Lau (charlotte.sy.lau@proton.me)
  * Update: 2025-03-19
  * 
@@ -47,7 +47,7 @@ const TIMEOUT = 6; // 6 for unpaid user; 30 for workspace user
 const SYNC_MODE = UPDATE;
 const sourceParentFolderId = "XXXXaoAMXCyIVncTe_hGpom1Zo9HV9999";
 const targetParentFolderId = "XXXXaTrn2gP8_7HtGJT3eLwE5-pT49999";
-const stateFileFolderId = sourceParentFolderId
+const stateFileFolderId = sourceParentFolderId;
 
 // Subfolders to sync (list of subfolder names), set null if all subfolders are to sync
 const syncFolderList = null; // default all subfolders
@@ -80,12 +80,11 @@ const statefileSuffix= '.driveFolderSync.json'; // [2024-10-25] Charlotte
 const maxRuntime = (TIMEOUT-1) * 60 * 1000;
 //How long to wait to trigger another run of runCloneJob. 30 seconds seems fair. 
 const msToNextRun = 30000;
+// Save state every 100 folders processed
+const CHECKPOINT_INTERVAL = 100; 
 //This is the global object that's going to hold all details about the clone job. 
 let cloneJob;
 
-//Job is divided into phases. Phase 0 is the only one that can't restart if it runs out of time. 
-//Testing indicates that you should be able to traverse a thousand nested folders in 5 min. 
-//If it does timeout during phase 0 you'll need to have it traverse fewer folders. 
 /* Clone job phases: 
   0. Initial source folder traversal and job setup
   1. Creating destination folders if necessary
@@ -128,8 +127,9 @@ function driveFolderSync() {
       jobPhases[currentPhase].callbackFunction();
     }
     if (!isTimedOut_()) {
-      // [2024-10-25] Skip writing state file for Phase Cleanup
-      if (++cloneJob.phase<5) {
+      // [2025-03-20] Charlotte: Only increment phase after Phase 0
+      if (currentPhase > 0 && currentPhase < 5) {
+        cloneJob.phase++;
         writeStateFile_(cloneJob);
       }
     } else {
@@ -143,31 +143,40 @@ function driveFolderSync() {
   }
 }
 //----------------------------------------------\\
-// [2024-10-27] Charlotte: Modified for sync mode. traverse subfolders or roots instead.
+// [2025-03-20] Charlotte: Add traversal resumption feature
 function cloneJobSetup_() {
   let rootFolder = DriveApp.getFolderById(sourceParentFolderId);
 
-  // Check root subfolders
-  var folders = rootFolder.getFolders();
-  while (folders.hasNext()) {
-    let folder = folders.next()
-    let folderName = folder.getName();
-    if (syncFolderList && syncFolderList.indexOf(folderName)==-1) {
-      continue; // skip subfolder not in list, if list is not null
+  // Initialize or resume from existing stack
+  if (!cloneJob.traversalStack) {
+    cloneJob.traversalStack = [];
+    let folders = rootFolder.getFolders();
+    while (folders.hasNext()) {
+      let folder = folders.next();
+      let folderName = folder.getName();
+      if (syncFolderList && syncFolderList.indexOf(folderName) == -1) {
+        continue;
+      }
+      Logger.log("Job setup for subfolder: " + folderName);
+      let root = {
+        name: folderName,
+        id: folder.getId(),
+        parentId: targetParentFolderId,
+        phase: 0,
+        destId: "",
+        folders: [],
+        files: []
+      };
+      cloneJob.tree.push(root);
+      cloneJob.traversalStack.push(root); // Add to stack for processing
     }
-    Logger.log("Job setup for subfolder: " + folderName);
-    let root = {
-      name: folderName,
-      id: folder.getId(),
-      parentId: targetParentFolderId,
-      phase: 0,
-      destId: "",
-      folders: [],
-      files: []
-    };
-    cloneJob.tree.push(root);
   }
-  traverseDrive_(cloneJob.tree);
+
+  // Start or resume traversal
+  traverseDriveIterative_();
+  if (!isTimedOut_()) {
+    cloneJob.phase = 1; // Move to next phase only if traversal completes
+  }
 }
 //----------------------------------------------\\
 function cloneJobFinish_() {
@@ -234,11 +243,16 @@ function cloneJobFinish_() {
   MailApp.sendEmail(Session.getActiveUser().getEmail(), subject, message, options);
 }
 //----------------------------------------------\\
-function traverseDrive_(driveTree) {
-  for (let currentFolder of driveTree) {
+// [2025-03-20] Charlotte: New iterative traversal function
+function traverseDriveIterative_() {
+  let folderCountSinceCheckpoint = 0;
+
+  while (cloneJob.traversalStack.length > 0 && !isTimedOut_()) {
+    let currentFolder = cloneJob.traversalStack.pop(); // Get next folder from stack
     let driveFolder = DriveApp.getFolderById(currentFolder.id);
     let sourceName = driveFolder.getName();
     let sourceID = driveFolder.getId();
+
     if (sourceFilter && sourceFilter.test(sourceName)) {
       Logger.log("Skip filtered folder: " + sourceName);
       continue;
@@ -258,10 +272,22 @@ function traverseDrive_(driveTree) {
         files: []
       };
       currentFolder.folders.push(newSubFolder);
+      cloneJob.traversalStack.push(newSubFolder); // Add subfolder to stack
     }
-    if (currentFolder.folders && currentFolder.folders.length > 0) {
-      traverseDrive_(currentFolder.folders);
+
+    folderCountSinceCheckpoint++;
+    if (folderCountSinceCheckpoint >= CHECKPOINT_INTERVAL) {
+      Logger.log("Checkpoint: Saving partial traversal state");
+      writeStateFile_(cloneJob); // Save progress
+      folderCountSinceCheckpoint = 0;
     }
+  }
+
+  if (isTimedOut_()) {
+    Logger.log("Traversal timed out. Saving partial state.");
+    writeStateFile_(cloneJob); // Save remaining stack and tree
+  } else {
+    delete cloneJob.traversalStack; // Clean up when complete
   }
 }
 //----------------------------------------------\\
@@ -464,7 +490,7 @@ function copyFiles_(folder) {
   folder.phase = 3; // updated as phase 3
 }
 //----------------------------------------------\\
-// [2024-10-27] Charlotte: modified for sync mode.
+// Update readStateFile_ to include traversalStack
 function readStateFile_() {
   let destFolder = DriveApp.getFolderById(stateFileFolderId);
   let scriptId = ScriptApp.getScriptId();
@@ -475,7 +501,7 @@ function readStateFile_() {
     let file = fileList.next();
     let id = file.getId();
     rv = JSON.parse(file.getBlob().getDataAsString());
-    Logger.log("State file found and read.  (ID: "+id+")\nContinue job."); // [2024-10-25] Charlotte
+    Logger.log("State file found and read. (ID: " + id + ")\nContinue job.");
   } else {
     rv = {
       start: Date.now(),
@@ -493,10 +519,11 @@ function readStateFile_() {
       failureList: [],
       tree: [],
       filesToDelete: [],
-      actionLog: []
+      actionLog: [],
+      traversalStack: null // Add this to track traversal progress
     };
-    Logger.log("State file not found. Start new job."); // [2024-10-25] Charlotte
-    Logger.log("SYNC_MODE = " + syncModeList[SYNC_MODE] + " (" + SYNC_MODE + ")") // [2025-03-13] Charlotte
+    Logger.log("State file not found. Start new job.");
+    Logger.log("SYNC_MODE = " + syncModeList[SYNC_MODE] + " (" + SYNC_MODE + ")");
   }
   return rv;
 }
