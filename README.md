@@ -2,9 +2,9 @@
 
 A Google Apps Script to synchronize subfolders between Google Drive folders with configurable sync modes (COPY, UPDATE, MIRROR).
 
-[![Version](https://img.shields.io/badge/version-1.2.0-4A4A4A)](https://github.com/charlotte-lau-hk/GoogleDriveFolderSync/releases)  
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0077B5?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
-[![Website](https://img.shields.io/badge/Website-syclau.hk-2E7D32)](https://www.syclau.hk)  
+[![Version](https://img.shields.io/badge/version-1.2.0-F1C40F)](https://github.com/charlotte-lau-hk/GoogleDriveFolderSync/releases)  
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Charlotte%20Lau-0288D1?logo=linkedin)](https://www.linkedin.com/in/charlotte-lau-hk/)  
+[![Website](https://img.shields.io/badge/Website-syclau.hk-D81B60)](https://www.syclau.hk)  
 *Last Updated: 2025-03-20*
 
 ## Overview
