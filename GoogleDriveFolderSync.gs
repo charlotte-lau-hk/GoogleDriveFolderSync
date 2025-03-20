@@ -8,7 +8,7 @@
  * https://github.com/3DTechConsultants/GoogleDriveClone/
  * *****************************************************/
 // How to Use
-// 1) Copy this script into a new Google Apps Script project.
+// 1) Copy this script and "Showdown.gs" into a new Google Apps Script project.
 // 2) Configure parameters below:
 //    - SYNC_MODE: Set to COPY, UPDATE, or MIRROR.
 //    - sourceParentFolderId: Source folder ID.
