@@ -1,39 +1,33 @@
 /*******************************************************
  * Google Drive Folder Sync (v1.2.0)
- * Author: Charlotte Lau (charlotte.sy.lau@proton.me)
- * Update: 2025-03-19
- * 
+ * Author: Charlotte Lau
+ * Update: 2025-03-20
+ * GitHub: https://github.com/charlotte-lau-hk/GoogleDriveFolderSync
+ *
  * Original source by Dustin D. (3DTechConsultantsat) at
  * https://github.com/3DTechConsultants/GoogleDriveClone/
  * *****************************************************/
 // How to Use
-// 1) Make a copy of this file
-//    - Go to the "Overview" tab
-//    - Click the copy button at top-right corner
-//    - The copied script file will be at the root of "My Drive"
-// 2) Change the parameters below
-//    - set SYNC_MODE to COPY/UPDATE/MIRROR
-//    - set source and target parent folder IDs
-//    - set comma-separated list of subfolder names OR null for all subfolders
-//    - set stateFileFolderId to indicate folder where the state file 
-//      is saved (write permission is required)
-// 3) Note:
-//    - Source files will never be modified
-//    - Only subfolders are synced, files in source parent folder are not
-//    - Permissions and stars are not copied
-//    - Unsupported file types are not copied (Apps Script, Sites, Jamboard)
-//    - When a destination file is replaced, the file ID will be changed
-//    - Files deleted can be found in Trash within 30 days
-// 4) SYNC_MODE:
-//    - COPY: copy source file only if destination file doesn't exist
-//    - UPDATE: if destination file exists and is older than source file,
-//              copy source file and remove the destination file (i.e. replace)
-//    - MIRROR: UPDATE, and delete destination file if there is no source file
-//
-// Note:
-//    - Source files will never be modified
-//    - Destination folders will not be removed even in MIRROR mode
-/**************************************************/ 
+// 1) Copy this script into a new Google Apps Script project.
+// 2) Configure parameters below:
+//    - SYNC_MODE: Set to COPY, UPDATE, or MIRROR.
+//    - sourceParentFolderId: Source folder ID.
+//    - targetParentFolderId: Target folder ID.
+//    - stateFileFolderId: Folder ID for state file (requires write access).
+//    - syncFolderList: Subfolder names to sync (comma-separated) or null for all.
+//    - maxFileSize: Max file size in bytes (e.g., 104857600 for 100 MB) or null.
+// 3) Run the 'driveFolderSync' function.
+// Notes:
+//    - Source files remain unchanged; only subfolders are synced.
+//    - Permissions and stars are not copied.
+//    - Unsupported MIME types (Apps Script, Sites, Jamboard) are skipped.
+//    - MIRROR mode deletes unmatched target files (recoverable from Trash for 30 days).
+//    - Target storage limits apply; use maxFileSize to avoid quota issues.
+// SYNC_MODE:
+//    - COPY: Copies only if target file doesn’t exist.
+//    - UPDATE: Replaces older target files with newer source files.
+//    - MIRROR: UPDATE plus deletes unmatched target files.
+/**************************************************/
 // Don't change this
 const COPY = 0;  
 const UPDATE = 1;
@@ -56,6 +50,9 @@ const syncFolderList = null; // default all subfolders
 // filtering (regex) for files not to sync
 const sourceFilter = null;  // default nothing to match
 //const sourceFilter = /^!_.*/; // prefix="!_"
+
+// skip large files if necessary
+const maxFileSize = null; // Maximum file size in bytes (e.g., 104857600 for 100 MB); null to disable
 
 // by default, the owner of the script will receive and email after job completion
 // to add more recipients, change the following to a list of addresses
@@ -206,6 +203,26 @@ function cloneJobFinish_() {
     "\n* End Time: " + endTimeStr +
     "\n* Total Runtime: " + Math.round(totalRuntime) + " Minutes\n\n";  
   
+  if (cloneJob.actionLog.length>0) {
+    message += "\nAction log:\n";
+    let logTable = "|Action|File Name|Source File ID|Destination File ID|Replaced File ID|\n";
+    logTable += "|---|---|---|---|---|\n";
+    cloneJob.actionLog.forEach((row) => {
+        logTable += "|" + row.action + "|" + row.fileName + "|" + row.srcFile + "|" + row.destFile + "|" + row.destReplaced + "|\n";
+    })
+    message += logTable;
+  }
+
+  if (cloneJob.skippedLargeFiles.length > 0) {
+    message += "\nSkipped Large Files (exceeding maxFileSize):\n";
+    let logTable = "|File Name|ID|Size (bytes)|\n";
+    logTable += "|---|---|---|\n";
+    cloneJob.skippedLargeFiles.forEach((row) => {
+      logTable += "|" + row.name + "|" + row.id + "|" + row.size + "|\n";
+    });
+    message += logTable;
+  }
+
   if (cloneJob.failureList.length>0) {
     message += "Copy failure list:\n"
     let logTable = "|File name|ID|message|\n";
@@ -216,15 +233,6 @@ function cloneJobFinish_() {
     message += logTable;
   }
 
-  if (cloneJob.actionLog.length>0) {
-    message += "\nAction log:\n";
-    let logTable = "|Action|File Name|Source File ID|Destination File ID|Replaced File ID|\n";
-    logTable += "|---|---|---|---|---|\n";
-    cloneJob.actionLog.forEach((row) => {
-        logTable += "|" + row.action + "|" + row.fileName + "|" + row.srcFile + "|" + row.destFile + "|" + row.destReplaced + "|\n";
-    })
-    message += logTable;
-  }
 
   let html = null;
   let options = { noReply: true };
@@ -361,6 +369,13 @@ function findFiles_(folder) {
         Logger.log("Skip shortcut: " + nextDriveFileName);
         continue;
       }
+      // [2025-03-20] Charlotte: skip large files
+      let fileSize = nextDriveFile.getSize();
+      if (maxFileSize !== null && fileSize > maxFileSize) { // Check size limit
+        Logger.log("Skip oversized file: " + nextDriveFileName + " (" + fileSize + " bytes > " + maxFileSize + " bytes)");
+        cloneJob.skippedLargeFiles.push({ name: nextDriveFileName, id: nextDriveFile.getId(), size: fileSize });
+        continue;
+      }
       let dateUpdated = new Date(nextDriveFile.getLastUpdated()); // [2025-01-16] use getLastUpdated() instead of getDateCreated()
       let timeStamp = Math.floor(dateUpdated.getTime()/1000);
       let newFile = {
@@ -368,7 +383,7 @@ function findFiles_(folder) {
         mime: mime,
         id: nextDriveFile.getId(),
         destId: null,
-        size: nextDriveFile.getSize(),
+        size: fileSize,
         timeStamp: timeStamp
       }
       folder.files.push(newFile);
@@ -520,7 +535,8 @@ function readStateFile_() {
       tree: [],
       filesToDelete: [],
       actionLog: [],
-      traversalStack: null // Add this to track traversal progress
+      traversalStack: null, // Add this to track traversal progress
+      skippedLargeFiles: [] // Add this to log large files that are skipped
     };
     Logger.log("State file not found. Start new job.");
     Logger.log("SYNC_MODE = " + syncModeList[SYNC_MODE] + " (" + SYNC_MODE + ")");
