@@ -71,10 +71,10 @@ const syncFolderList = null;
 
 ## Credits
 - Derived from [GoogleDriveClone](https://github.com/3DTechConsultants/GoogleDriveClone/) by Dustin D. (3DTechConsultantsat), licensed under [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html).
-Uses [Showdown v2.1.0](https://github.com/showdownjs/showdown) for HTML formatting, licensed under [MIT](https://opensource.org/licenses/MIT).
+- Uses [Showdown v2.1.0](https://github.com/showdownjs/showdown) for HTML formatting, licensed under [MIT](https://opensource.org/licenses/MIT).
 
 ## License
-This project is licensed under [GPL-3.0](https://grok.com/chat/LICENSE), consistent with the original work.
+This project is licensed under [GPL-3.0](LICENSE), consistent with the original work.
 
 ## Contributing
 Suggestions and bug reports are welcome! Please open an [issue](https://github.com/charlotte-lau-hk/GoogleDriveFolderSync/issues) or submit a pull request.
