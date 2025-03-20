@@ -40,7 +40,7 @@ Modify these in `Code.gs`:
 - **`targetParentFolderId`**: ID of the target parent folder (create a new folder for a fresh sync).
 - **`stateFileFolderId`**: ID of the folder to store the temporary state file (requires write permission).
 - **`syncFolderList`**: List of subfolder names to sync (e.g., `["folder1", "folder2"]`); set to `null` for all subfolders.
-- **`sourceFilter`**: Regex to exclude files (e.g., `/^!_.*/` for files starting with `!_`); set to `null` to disable.
+- **`sourceFilter`**: Regex to exclude files and subfolders (e.g., `/^!_.*/` for files starting with `!_`); set to `null` to disable.
 - **`maxFileSize`**: Maximum file size (in bytes) to sync; set to `null` to disable. Files larger than this are skipped to respect target storage limits (e.g., Google Drive’s quota).
 - **`emailRecipients`**: Optional list of additional email recipients (e.g., `["alice@abc.com", "bob@xyz.com"]`); set to `null` for owner only.
 
