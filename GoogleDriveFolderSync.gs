@@ -14,10 +14,10 @@
 //    - sourceParentFolderId: Source folder ID.
 //    - targetParentFolderId: Target folder ID.
 //    - stateFileFolderId: Folder ID for state file (requires write access).
-//    - syncFolderList: Subfolder names to sync (comma-separated) or null for all.
+//    - syncFolderList: Subfolder names to sync (comma-separated); set null for all.
 //    - sourceFilter: Regex to exclude files and subfolders; set to null to disable.
-//    - maxFileSize: Max file size in bytes (e.g., 104857600 for 100 MB) or null.
-//    - emailRecipients: Optional list of additional email recipients (comma-separated) or null for owner only.
+//    - maxFileSize: Max file size in bytes (e.g., 104857600 for 100 MB); set null for no limit.
+//    - emailRecipients: List of additional email recipients (comma-separated); set null for owner only.
 // 3) Run the 'driveFolderSync' function.
 // Notes:
 //    - Source files remain unchanged; only subfolders are synced.
