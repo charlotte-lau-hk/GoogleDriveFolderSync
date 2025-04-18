@@ -1,7 +1,7 @@
 /*******************************************************
- * Google Drive Folder Sync (v1.2.0)
+ * Google Drive Folder Sync (v1.2.1)
  * Author: Charlotte Lau
- * Update: 2025-03-20
+ * Update: 2025-04-18 (bug fix)
  * GitHub: https://github.com/charlotte-lau-hk/GoogleDriveFolderSync
  *
  * Original source by Dustin D. (3DTechConsultantsat) at
