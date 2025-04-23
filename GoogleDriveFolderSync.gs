@@ -1,7 +1,7 @@
 /*******************************************************
- * Google Drive Folder Sync (v1.2.1)
+ * Google Drive Folder Sync (v1.2.2)
  * Author: Charlotte Lau
- * Update: 2025-04-18 (bug fix)
+ * Update: 2025-04-23 (bug fix)
  * GitHub: https://github.com/charlotte-lau-hk/GoogleDriveFolderSync
  *
  * Original source by Dustin D. (3DTechConsultantsat) at
@@ -43,9 +43,9 @@ const TIMEOUT = 6; // 6 for unpaid user; 30 for workspace user
 const SYNC_MODE = UPDATE;
 const sourceParentFolderId = "XXXXaoAMXCyIVncTe_hGpom1Zo9HV9999";
 const targetParentFolderId = "XXXXaTrn2gP8_7HtGJT3eLwE5-pT49999";
-const stateFileFolderId = sourceParentFolderId;
+const stateFileFolderId = sourceParentFolderId
 
-// Subfolders to sync (list of subfolder names), set null if all subfolders are to sync
+// Subfolders to sync (list of subfolder names)
 const syncFolderList = null; // default all subfolders
 //const syncFolderList = ["subfolder1", "subfolder2"];
 
@@ -93,7 +93,7 @@ let cloneJob;
   5. Cleaning up
 */
 //----------------------------------------------\\
-function driveFolderSync() {
+function driveFolderSync(e = null) {
   /* Parameter Validation */
   if (!sourceParentFolderId || !targetParentFolderId || !stateFileFolderId) {
     throw new Error("Required folder IDs must be set");
@@ -104,16 +104,21 @@ function driveFolderSync() {
 
   /* start working */
   cloneJob = readStateFile_();
+  if (e) {
+    Logger.log("▶️ Start by trigger: " + e.triggerUid + "(Rerun #" + (++cloneJob.rerun) + ")");
+  } else {
+    Logger.log("▶️ Start by editor.");
+  }
   clearTriggers_();
   cloneJob.timeout = Date.now() + maxRuntime;
 
   const jobPhases = [
-    { logMessage: "# Phase 0 - Traverse Source Folders", callbackFunction: cloneJobSetup_, travObject: false },
-    { logMessage: "# Phase 1 - Create Destination Folders", callbackFunction: createFolders_, travObject: true },
-    { logMessage: "# Phase 2 - Build File List", callbackFunction: findFiles_, travObject: true},
-    { logMessage: "# Phase 3 - Copy or replace files", callbackFunction: copyFiles_, travObject: true },
-    { logMessage: "# Phase 4 - Delete unmatched files", callbackFunction: deleteDestFiles_, travObject: false },
-    { logMessage: "# Phase 5 - Cleanup", callbackFunction: cloneJobFinish_, travObject: false },
+    { logMessage: "🚩 Phase 0 - Traverse Source Folders", callbackFunction: cloneJobSetup_, travObject: false },
+    { logMessage: "🚩 Phase 1 - Create Destination Folders", callbackFunction: createFolders_, travObject: true },
+    { logMessage: "🚩 Phase 2 - Build File List", callbackFunction: findFiles_, travObject: true},
+    { logMessage: "🚩 Phase 3 - Copy or replace files", callbackFunction: copyFiles_, travObject: true },
+    { logMessage: "🚩 Phase 4 - Delete unmatched files", callbackFunction: deleteDestFiles_, travObject: false },
+    { logMessage: "🚩 Phase 5 - Cleanup", callbackFunction: cloneJobFinish_, travObject: false },
   ];
 
   for (let currentPhase = cloneJob.phase; currentPhase < jobPhases.length; currentPhase++) {
@@ -132,7 +137,8 @@ function driveFolderSync() {
         writeStateFile_(cloneJob);
       }
     } else {
-      Logger.log("Execution time Exceeded - Setting trigger")
+      Logger.log("⏰ Execution time Exceeded - Setting trigger");
+      cloneJob.rerun++;
       ScriptApp.newTrigger("driveFolderSync")
         .timeBased()
         .after(msToNextRun)
@@ -156,7 +162,7 @@ function cloneJobSetup_() {
       if (syncFolderList && syncFolderList.indexOf(folderName) == -1) {
         continue;
       }
-      Logger.log("Job setup for subfolder: " + folderName);
+      Logger.log("🛠️ Job setup for subfolder: " + folderName);
       let root = {
         name: folderName,
         id: folder.getId(),
@@ -263,12 +269,7 @@ function traverseDriveIterative_() {
     let sourceName = driveFolder.getName();
     let sourceID = driveFolder.getId();
 
-    if (sourceFilter && sourceFilter.test(sourceName)) {
-      Logger.log("Skip filtered folder: " + sourceName);
-      continue;
-    }
-    Logger.log("Entering folder: " + sourceName + "; (ID: " + sourceID + ")");
-
+    Logger.log("📂 Entering folder: " + sourceName + "; (ID: " + sourceID + ")");
     let driveSubFolders = driveFolder.getFolders();
     while (driveSubFolders.hasNext()) {
       let driveSubFolder = driveSubFolders.next();
@@ -281,20 +282,25 @@ function traverseDriveIterative_() {
         folders: [],
         files: []
       };
+      if (sourceFilter && sourceFilter.test(newSubFolder.name)) {
+        Logger.log("🏳️ Skip filtered subfolder: " + newSubFolder.name);
+        continue;
+      }
+      Logger.log("➕ Collect subfolder: " + newSubFolder.name);
       currentFolder.folders.push(newSubFolder);
       cloneJob.traversalStack.push(newSubFolder); // Add subfolder to stack
     }
 
     folderCountSinceCheckpoint++;
     if (folderCountSinceCheckpoint >= CHECKPOINT_INTERVAL) {
-      Logger.log("Checkpoint: Saving partial traversal state");
+      Logger.log("⏱️ Checkpoint: Saving partial traversal state");
       writeStateFile_(cloneJob); // Save progress
       folderCountSinceCheckpoint = 0;
     }
   }
 
   if (isTimedOut_()) {
-    Logger.log("Traversal timed out. Saving partial state.");
+    Logger.log("⚠️ Traversal timed out. Saving partial state.");
     writeStateFile_(cloneJob); // Save remaining stack and tree
   } else {
     delete cloneJob.traversalStack; // Clean up when complete
@@ -306,22 +312,24 @@ function traverseObject_(driveTree, callback) {
     return;
   }
   for (let currentFolder of driveTree) {
-    callback(currentFolder);
+    if (cloneJob.phase != 3) callback(currentFolder); // [2025-04-22] v1.2.2 bug fix: depth first traversal for phase 3
     if (currentFolder.folders && currentFolder.folders.length > 0 && !isTimedOut_()) {
       traverseObject_(currentFolder.folders, callback);
     }
+    if (cloneJob.phase == 3) callback(currentFolder); // [2025-04-22] v1.2.2 bug fix: depth first traversal for phase 3
   }
 }
 //----------------------------------------------\\
 // [2024-10-27] Charlotte: modified for sync mode. use existing subfolder if possible.
 function createFolders_(folder) {
+  Logger.log("📁 Folder enters phase 1: " + folder.name + " (ID: " + folder.id + ")");
   if (folder.phase < cloneJob.phase && !isTimedOut_()) {
     let driveParentFolder = DriveApp.getFolderById(folder.parentId);
     let folders = driveParentFolder.getFoldersByName(folder.name);
     if (folders.hasNext()) {
       let destFolder = folders.next();
       folder.destId = destFolder.getId();
-      Logger.log("Destination folder found. Use existing. " + folder.name + " (ID: " + folder.destId + ")");
+      Logger.log("♻️ Destination folder found. Use existing. " + folder.name + " (ID: " + folder.destId + ")");
       // [2024-12-27] Charlotte: collect existing files in destiination folder
       let driveFiles = destFolder.getFiles();
       while (driveFiles.hasNext()) {
@@ -336,7 +344,7 @@ function createFolders_(folder) {
         }
       }
     } else {
-      Logger.log("Creating destination folder. " + folder.name);
+      Logger.log("🌟 Creating destination folder. " + folder.name);
       let newDriveFolder = driveParentFolder.createFolder(folder.name);
       folder.destId = newDriveFolder.getId();
     }
@@ -346,35 +354,33 @@ function createFolders_(folder) {
       subfolder.parentId = folder.destId;
     }
   }
+  Logger.log("📁✔️ Folder phase updated to 1: " + folder.name);
 }
 //----------------------------------------------\\
 // [2024-10-27] Charlotte: modified for sync mode.
 function findFiles_(folder) {
+  Logger.log("📁 Folder enters phase 2: " + folder.name + " (ID: " + folder.id + ")");
   if (folder.phase < cloneJob.phase && !isTimedOut_()) {
     let driveSourceFolder = DriveApp.getFolderById(folder.id);
     let driveFiles = driveSourceFolder.getFiles();
     while (driveFiles.hasNext()) {
       let nextDriveFile = driveFiles.next();
       let nextDriveFileName = nextDriveFile.getName();
-      //Don't copy the statefile over. 
-      //if (nextDriveFileName == statefileFilename && folder.id == sourceFolderId) {
-      //  continue;
-      //}
       // [2024-12-17] Charlotte: skip if match filter
       if (sourceFilter && sourceFilter.test(nextDriveFileName)) {
-        Logger.log("Skip filtered: " + nextDriveFileName);
+        Logger.log("🏳️ Skip filtered: " + nextDriveFileName);
         continue;
       }
       // [2024-10-25] Charlotte: skip if the file is a shortcut
       let mime = nextDriveFile.getMimeType();
       if (mime===MimeType.SHORTCUT) {
-        Logger.log("Skip shortcut: " + nextDriveFileName);
+        Logger.log("🏳️ Skip shortcut: " + nextDriveFileName);
         continue;
       }
       // [2025-03-20] Charlotte: skip large files
       let fileSize = nextDriveFile.getSize();
       if (maxFileSize !== null && fileSize > maxFileSize) { // Check size limit
-        Logger.log("Skip oversized file: " + nextDriveFileName + " (" + fileSize + " bytes > " + maxFileSize + " bytes)");
+        Logger.log("🏳️ Skip oversized file: " + nextDriveFileName + " (" + fileSize + " bytes > " + maxFileSize + " bytes)");
         cloneJob.skippedLargeFiles.push({ name: nextDriveFileName, id: nextDriveFile.getId(), size: fileSize });
         continue;
       }
@@ -390,14 +396,17 @@ function findFiles_(folder) {
       }
       folder.files.push(newFile);
       cloneJob.fileCount++;
-      Logger.log("Found file: " + newFile.name + "; (ID: " + newFile.id + "; MIME: " + newFile.mime + ")");  // [2024-10-25] Charlotte
+      Logger.log("📄 Found file: " + newFile.name + "; (ID: " + newFile.id + "; MIME: " + newFile.mime + ")");  // [2024-10-25] Charlotte
     }
   }
   folder.phase = 2; // Updated as phase 2
+  Logger.log("📁✔️ Folder phase updated to 2: " + folder.name);
+  writeStateFile_(cloneJob);
 }
 //----------------------------------------------\\
 // [2024-10-27] Charlotte: modified for sync mode.
 function copyFiles_(folder) {
+  Logger.log("📁 Folder enters phase 3: " + folder.name + " (ID: " + folder.id + ")");
   if (folder.phase < cloneJob.phase) {
     for (let file of folder.files) {
       if (isTimedOut_()) {
@@ -408,7 +417,7 @@ function copyFiles_(folder) {
         continue;
       }
       //Logger.log("Copying/Moving file " + file.name);
-      Logger.log("To sync file: " + file.name + " (Size: " + file.size + "; ID: " + file.id + "; MIME: " + file.mime + ")" ); // [2024-10-25] Charlotte
+      Logger.log("✨ To sync file: " + file.name + " (Size: " + file.size + "; ID: " + file.id + "; MIME: " + file.mime + ")" ); // [2024-10-25] Charlotte
       let driveSourceFile = DriveApp.getFileById(file.id);
       let driveDestFolder = DriveApp.getFolderById(folder.destId);
       // [2024-10-27] Charlotte: Adding SYNC_MODE check
@@ -423,10 +432,10 @@ function copyFiles_(folder) {
       let toRemoveDestFile = false;
       let toRemoveDestFileId = null;
       if (destId == null) {
-         Logger.log("> No destination file matched. To copy.");
+         Logger.log("📋 > No destination file matched. To copy.");
       } else {
         if (cloneJob.syncMode==COPY) {
-          Logger.log("> Destination file exists. Skip. (ID: " + destId + ")");
+          Logger.log("🏳️ > Destination file exists. Skip. (ID: " + destId + ")");
           file.destId = destId; // Save destId into state file
           continue; // skip copying
         } else if (cloneJob.syncMode>=UPDATE) {
@@ -436,11 +445,11 @@ function copyFiles_(folder) {
             cloneJob.filesToDelete = cloneJob.filesToDelete.filter(id => id !== destId); // exclude from files-to-delete list
           }
           if (timeStamp > file.timeStamp) {
-            Logger.log("> Destination file exists and is newer. Skip: (ID: " + destId + ")");
+            Logger.log("🏳️ > Destination file exists and is newer. Skip: (ID: " + destId + ")");
             file.destId = destId; // Save destId into state file
             continue; // skip copying
           } else {
-            Logger.log("> Destination file exists and is older. To replace. (ID: " + destId + ")");
+            Logger.log("🏳️ > Destination file exists and is older. To replace. (ID: " + destId + ")");
             toRemoveDestFile = true;
             toRemoveDestFileId = destId;
             cloneJob.filesToDelete = cloneJob.filesToDelete.filter(id => id !== destId); // exclude from files-to-delete list
@@ -449,16 +458,16 @@ function copyFiles_(folder) {
       }
       // Copying now
       if (copyUnsupported.includes(file.mime)) {
-        Logger.log("--> MIME type not supported for copying. Skip.");
+        Logger.log("🏳️ --> MIME type not supported for copying. Skip.");
         continue;
       }  
-      Logger.log("--> Copying file."); // [2024-10-25] Charlotte
+      Logger.log("📋 --> Copying file."); // [2024-10-25] Charlotte
       try {
         driveDestFile = driveSourceFile.makeCopy(file.name, driveDestFolder);
         file.destId = driveDestFile.getId();
         cloneJob.fileSize += file.size;
       } catch (e) {
-        Logger.log("Failed copying file: " + file.name + " " + e.message);
+        Logger.log("⚠️ Failed copying file: " + file.name + " " + e.message);
         file.destId = "FAILED";
         cloneJob.failures++;
         cloneJob.failureList.push({ "name": file.name, "id": file.id, "message": e.message });
@@ -476,15 +485,15 @@ function copyFiles_(folder) {
         }
       }
 
-      Logger.log("----> File copied. (new ID: " + file.destId + ")");
+      Logger.log("📋 ----> File copied. (new ID: " + file.destId + ")");
 
       // remove old destination file
       if (cloneJob.syncMode>=UPDATE && toRemoveDestFile && toRemoveDestFileId) {
-        Logger.log("--> Removing old destination file.");
+        Logger.log("🗑️ --> Removing old destination file. (Replacement)");
         let fileToRemove = DriveApp.getFileById(toRemoveDestFileId);
         fileToRemove.setTrashed(true);
         cloneJob.replaceCount++;
-        Logger.log("----> Old destination file removed. (ID: " + toRemoveDestFileId + ")");
+        Logger.log("🗑️ ----> Old destination file removed. (ID: " + toRemoveDestFileId + ")");
         cloneJob.actionLog.push({
           action: "Replace",
           fileName: file.name,
@@ -505,6 +514,8 @@ function copyFiles_(folder) {
     }
   }
   folder.phase = 3; // updated as phase 3
+  Logger.log("📁✔️ Folder phase updated to 3: " + folder.name);
+  writeStateFile_(cloneJob);
 }
 //----------------------------------------------\\
 // Update readStateFile_ to include traversalStack
@@ -518,11 +529,13 @@ function readStateFile_() {
     let file = fileList.next();
     let id = file.getId();
     rv = JSON.parse(file.getBlob().getDataAsString());
-    Logger.log("State file found and read. (ID: " + id + ")\nContinue job.");
+    Logger.log("📜 State file found and read. (ID: " + id + ")\nContinue job.");
   } else {
     rv = {
       start: Date.now(),
       timeout: Date.now() + maxRuntime,
+      timeoutLogged: false,
+      rerun: 0,
       syncMode: SYNC_MODE,
       syncModeStr: syncModeList[SYNC_MODE],
       phase: 0,
@@ -540,7 +553,7 @@ function readStateFile_() {
       traversalStack: null, // Add this to track traversal progress
       skippedLargeFiles: [] // Add this to log large files that are skipped
     };
-    Logger.log("State file not found. Start new job.");
+    Logger.log("🔰 State file not found. Start new job.");
     Logger.log("SYNC_MODE = " + syncModeList[SYNC_MODE] + " (" + SYNC_MODE + ")");
   }
   return rv;
@@ -551,18 +564,17 @@ function writeStateFile_(content) {
   let scriptId = ScriptApp.getScriptId();
   let fileName = DriveApp.getFileById(scriptId).getName() + statefileSuffix;
   let fileList = destFolder.getFilesByName(fileName);
-  content.log += (Logger.getLog() + "\n");
   if (fileList.hasNext()) {
     // State file exists - replace content
     let file = fileList.next();
     let id = file.getId();
     file.setContent(JSON.stringify(content));
-    Logger.log("Existing state file updated. (ID: "+id+")")
+    Logger.log("💾 Existing state file updated. (ID: "+id+")")
   } else {
     // state file doesn't exist. Create it. 
     let file = destFolder.createFile(fileName, JSON.stringify(content));
     let id = file.getId();
-    Logger.log("New state file created. (ID: "+id+")")
+    Logger.log("📜 New state file created. (ID: "+id+")")
   }
 }
 //----------------------------------------------\\
@@ -577,7 +589,7 @@ function deleteStateFile_() {
     let file = fileList.next();
     let id = file.getId();
     file.setTrashed(true);
-    Logger.log("State file found and deleted. (ID: "+id+")");
+    Logger.log("🗑️ State file found and deleted. (ID: "+id+")");
   }
 }
 //----------------------------------------------\\
@@ -591,11 +603,14 @@ function clearTriggers_() {
 //----------------------------------------------\\
 function isTimedOut_() {
   if (Date.now() >= cloneJob.timeout) {
-    Logger.log("Timeout");
+    if (!cloneJob.timeoutLogged) {
+      const elapsed = Date.now() - (cloneJob.timeout - maxRuntime);
+      Logger.log("⚠️ Timeout after " + (elapsed / 1000) + " seconds");
+      cloneJob.timeoutLogged = true; // Prevent further logging
+    }
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 //----------------------------------------------\\
 // [2024-12-27] Charlotte: Remove destination files with no source file
@@ -607,7 +622,7 @@ function deleteDestFiles_() {
       let fileName = file.getName();
       file.setTrashed(true);
       cloneJob.deleteCount++;
-      Logger.log("Delete " + fileName + " (ID: " + fileId + ")");
+      Logger.log("❌ Delete " + fileName + " (ID: " + fileId + ")");
       cloneJob.actionLog.push({
               action: "Delete",
               fileName: fileName,
