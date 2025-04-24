@@ -194,9 +194,9 @@ function cloneJobFinish_() {
   // [2024-10-25] Update email content with links to source and destination plus the log
   let startTimeStr = Utilities.formatDate(new Date(cloneJob.start), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   let endTimeStr = Utilities.formatDate(new Date(endTime), "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  let subject = (DRY_RUN? "[DRY RUN]":"") + "Drive Folder Sync Job Completed ("+endTimeStr+") - " + cloneJob.syncModeStr;
+  let subject = (DRY_RUN? "[DRY RUN] ":"") + "Drive Folder Sync Job Completed ("+endTimeStr+") - " + cloneJob.syncModeStr;
   let message = "Your drive folder sync job has completed successfully.  " +
-    "\nSYNC_MODE = " + cloneJob.syncMode + " (" + cloneJob.syncModeStr + ")" + (DRY_RUN? "[DRY RUN]":"")
+    "\nSYNC_MODE = " + cloneJob.syncMode + " (" + cloneJob.syncModeStr + ")" + (DRY_RUN? " [DRY RUN]":"") + 
     "\n\nScript URL:  \n" + scriptUrl +
     "\n\nSource Parent Folder:  \nhttps://drive.google.com/drive/folders/" + sourceParentFolderId +
     "\n\nDestination Parent Folder:  \nhttps://drive.google.com/drive/folders/" + targetParentFolderId +
