@@ -1,7 +1,7 @@
 /*******************************************************
- * Google Drive Folder Sync (v1.2.2)
+ * Google Drive Folder Sync (v1.3.0)
  * Author: Charlotte Lau
- * Update: 2025-04-23 (bug fix)
+ * Update: 2025-04-24 (added DRY_RUN mode)
  * GitHub: https://github.com/charlotte-lau-hk/GoogleDriveFolderSync
  *
  * Original source by Dustin D. (3DTechConsultantsat) at
@@ -10,6 +10,7 @@
 // How to Use
 // 1) Copy this script and "Showdown.gs" into a new Google Apps Script project.
 // 2) Configure parameters below:
+//    - DRY_RUN: Set true for testing
 //    - SYNC_MODE: Set to COPY, UPDATE, or MIRROR.
 //    - sourceParentFolderId: Source folder ID.
 //    - targetParentFolderId: Target folder ID.
@@ -39,7 +40,7 @@ let syncModeList = ["COPY", "UPDATE", "MIRROR"]
 /**************************************************
  * Parameters (User settings)
  **************************************************/
-const TIMEOUT = 6; // 6 for unpaid user; 30 for workspace user
+const DRY_RUN = true; // change to true for dry run mode
 const SYNC_MODE = UPDATE;
 const sourceParentFolderId = "XXXXaoAMXCyIVncTe_hGpom1Zo9HV9999";
 const targetParentFolderId = "XXXXaTrn2gP8_7HtGJT3eLwE5-pT49999";
@@ -50,8 +51,8 @@ const syncFolderList = null; // default all subfolders
 //const syncFolderList = ["subfolder1", "subfolder2"];
 
 // filtering (regex) for files not to sync
-const sourceFilter = null;  // default nothing to match
-//const sourceFilter = /^!_.*/; // prefix="!_"
+//const sourceFilter = null;  // default nothing to match
+const sourceFilter = /^!_.*/; // prefix="!_"
 
 // skip large files if necessary
 const maxFileSize = null; // Maximum file size in bytes (e.g., 104857600 for 100 MB); null to disable
@@ -74,9 +75,8 @@ let copyUnsupported = [
 
 //The temporary state filename - it will be written to the root of the source folder. 
 const statefileSuffix= '.driveFolderSync.json'; // [2024-10-25] Charlotte
-//Official max runtime is 6 minutes for unpaid and 30 min for paid accounts. Some processes aren't easy to break out of. 
-//Go with 5 min here to be safe. 
-const maxRuntime = (TIMEOUT-1) * 60 * 1000;
+//Official max runtime is 6 minute, use 5 minutes for to allow buffer to save state file
+const maxRuntime = 5 * 60 * 1000;
 //How long to wait to trigger another run of runCloneJob. 30 seconds seems fair. 
 const msToNextRun = 30000;
 // Save state every 100 folders processed
@@ -194,9 +194,9 @@ function cloneJobFinish_() {
   // [2024-10-25] Update email content with links to source and destination plus the log
   let startTimeStr = Utilities.formatDate(new Date(cloneJob.start), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   let endTimeStr = Utilities.formatDate(new Date(endTime), "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  let subject = "Drive Folder Sync Job Completed ("+endTimeStr+") - " + cloneJob.syncModeStr;
+  let subject = (DRY_RUN? "[DRY RUN]":"") + "Drive Folder Sync Job Completed ("+endTimeStr+") - " + cloneJob.syncModeStr;
   let message = "Your drive folder sync job has completed successfully.  " +
-    "\nSYNC_MODE = " + cloneJob.syncMode + " (" + cloneJob.syncModeStr + ")" +
+    "\nSYNC_MODE = " + cloneJob.syncMode + " (" + cloneJob.syncModeStr + ")" + (DRY_RUN? "[DRY RUN]":"")
     "\n\nScript URL:  \n" + scriptUrl +
     "\n\nSource Parent Folder:  \nhttps://drive.google.com/drive/folders/" + sourceParentFolderId +
     "\n\nDestination Parent Folder:  \nhttps://drive.google.com/drive/folders/" + targetParentFolderId +
@@ -345,8 +345,12 @@ function createFolders_(folder) {
       }
     } else {
       Logger.log("🌟 Creating destination folder. " + folder.name);
-      let newDriveFolder = driveParentFolder.createFolder(folder.name);
-      folder.destId = newDriveFolder.getId();
+      if (!DRY_RUN) {
+        let newDriveFolder = driveParentFolder.createFolder(folder.name);
+        folder.destId = newDriveFolder.getId();
+      } else {
+        folder.destId = "(Dummy ID for Dry Run)";
+      }
     }
     cloneJob.folderCount++;
     folder.phase = 1;
@@ -406,6 +410,9 @@ function findFiles_(folder) {
 //----------------------------------------------\\
 // [2024-10-27] Charlotte: modified for sync mode.
 function copyFiles_(folder) {
+  if (isTimedOut_()) {
+    return;
+  }
   Logger.log("📁 Folder enters phase 3: " + folder.name + " (ID: " + folder.id + ")");
   if (folder.phase < cloneJob.phase) {
     for (let file of folder.files) {
@@ -419,15 +426,19 @@ function copyFiles_(folder) {
       //Logger.log("Copying/Moving file " + file.name);
       Logger.log("✨ To sync file: " + file.name + " (Size: " + file.size + "; ID: " + file.id + "; MIME: " + file.mime + ")" ); // [2024-10-25] Charlotte
       let driveSourceFile = DriveApp.getFileById(file.id);
-      let driveDestFolder = DriveApp.getFolderById(folder.destId);
-      // [2024-10-27] Charlotte: Adding SYNC_MODE check
-      let fileList = driveDestFolder.getFilesByName(file.name);
+      let driveDestFolder = [];
+      let fileList = [];
       let destId = null;
       let destFile = null;
       let driveDestFile = null;
-      if (fileList.hasNext()) {
-        destFile = fileList.next();
-        destId = destFile.getId();
+      if (folder.destId) {
+        // folder.destId does not exist only when DRY_RUN mode and destination folder was not created
+        driveDestFolder = DriveApp.getFolderById(folder.destId);
+        fileList = driveDestFolder.getFilesByName(file.name);
+        if (fileList.hasNext()) {
+          destFile = fileList.next();
+          destId = destFile.getId();
+        }
       }
       let toRemoveDestFile = false;
       let toRemoveDestFileId = null;
@@ -463,8 +474,12 @@ function copyFiles_(folder) {
       }  
       Logger.log("📋 --> Copying file."); // [2024-10-25] Charlotte
       try {
-        driveDestFile = driveSourceFile.makeCopy(file.name, driveDestFolder);
-        file.destId = driveDestFile.getId();
+        if (!DRY_RUN) {
+          driveDestFile = driveSourceFile.makeCopy(file.name, driveDestFolder);
+          file.destId = driveDestFile.getId();
+        } else {
+          file.destId = "(Dummy ID for Dry Run)";
+        }
         cloneJob.fileSize += file.size;
       } catch (e) {
         Logger.log("⚠️ Failed copying file: " + file.name + " " + e.message);
@@ -475,7 +490,7 @@ function copyFiles_(folder) {
       }
 
       // [2025-01-14] when copying form-linked google sheet file, new form will be created, remove it
-      if (file.mime=="application/vnd.google-apps.spreadsheet") {
+      if (file.mime=="application/vnd.google-apps.spreadsheet" && !DRY_RUN) {
         let url = SpreadsheetApp.openById(file.destId).getFormUrl();
         if (url) {
           let form = FormApp.openByUrl(url);
@@ -484,14 +499,15 @@ function copyFiles_(folder) {
           fileToDelete.setTrashed(true);
         }
       }
-
       Logger.log("📋 ----> File copied. (new ID: " + file.destId + ")");
 
       // remove old destination file
       if (cloneJob.syncMode>=UPDATE && toRemoveDestFile && toRemoveDestFileId) {
         Logger.log("🗑️ --> Removing old destination file. (Replacement)");
         let fileToRemove = DriveApp.getFileById(toRemoveDestFileId);
-        fileToRemove.setTrashed(true);
+        if (!DRY_RUN) {
+          fileToRemove.setTrashed(true);
+        }      
         cloneJob.replaceCount++;
         Logger.log("🗑️ ----> Old destination file removed. (ID: " + toRemoveDestFileId + ")");
         cloneJob.actionLog.push({
@@ -620,7 +636,9 @@ function deleteDestFiles_() {
       let fileId = cloneJob.filesToDelete.pop();
       let file = DriveApp.getFileById(fileId);
       let fileName = file.getName();
-      file.setTrashed(true);
+      if (!DRY_RUN) {
+        file.setTrashed(true);
+      }
       cloneJob.deleteCount++;
       Logger.log("❌ Delete " + fileName + " (ID: " + fileId + ")");
       cloneJob.actionLog.push({
