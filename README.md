@@ -29,8 +29,8 @@ A Google Apps Script to synchronize subfolders between Google Drive folders with
 ## Parameters
 
 Modify these in `Code.gs`:
-- **`TIMEOUT`**:
-  - Default: `6` (minutes) for unpaid accounts; set to `30` for Workspace users.
+- **`DRY_RUN`**:
+  - `true` for dry run mode; set to `false` for real operations.
 - **`SYNC_MODE`**:
   - Requires view/copy permissions for source files.
   - `COPY`: Copies files only if they don’t exist in the target.
