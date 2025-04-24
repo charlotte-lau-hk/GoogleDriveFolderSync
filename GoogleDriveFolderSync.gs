@@ -51,8 +51,8 @@ const syncFolderList = null; // default all subfolders
 //const syncFolderList = ["subfolder1", "subfolder2"];
 
 // filtering (regex) for files not to sync
-//const sourceFilter = null;  // default nothing to match
-const sourceFilter = /^!_.*/; // prefix="!_"
+const sourceFilter = null;  // default nothing to match
+//const sourceFilter = /^!_.*/; // prefix="!_"
 
 // skip large files if necessary
 const maxFileSize = null; // Maximum file size in bytes (e.g., 104857600 for 100 MB); null to disable
